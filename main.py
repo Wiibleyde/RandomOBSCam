@@ -11,9 +11,21 @@ class ScenesDb:
         self.dbfile = dbfile
         self.conn = sqlite3.connect(dbfile)
         self.cursor = self.conn.cursor()
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS scenes (id INTEGER PRIMARY KEY, hour TEXT, scene TEXT, duration INTEGER)''')
+        self.cursor.execute('''CREATE TABLE IF NOT EXISTS scenes (id INTEGER PRIMARY KEY, hour TEXT, scene TEXT, reason TEXT)''')
         self.conn.commit()
-
+    
+    def add(self, hour, scene, reason):
+        self.cursor.execute('''INSERT INTO scenes (hour, scene, reason) VALUES (?, ?, ?, ?)''', (hour, scene, reason))
+        self.conn.commit()
+    
+    def getLast(self):
+        self.cursor.execute('''SELECT * FROM scenes ORDER BY id DESC LIMIT 1''')
+        return self.cursor.fetchone()
+    
+    def get20Last(self):
+        self.cursor.execute('''SELECT * FROM scenes ORDER BY id DESC LIMIT 20''')
+        return self.cursor.fetchall()
+    
 def nowTime():
     """Format : [hh:mm:ss]"""
     currentTime=time.strftime("%H:%M:%S")
@@ -26,7 +38,7 @@ def hourDate():
     currentDate=time.strftime("%d%m%Y")
     return f"{currentTime}.{currentDate}"
 
-def randomChange(fileName):
+def randomChangeClassic(fileName):
     lst=scenes.getScenes()
     nLst=[]
     for i in lst:
@@ -34,10 +46,7 @@ def randomChange(fileName):
             nLst.append(i)
     random_scene = random.choice(nLst)
     name = random_scene['name']
-    switch=u"{} : Switching to {}".format(nowTime(),name)
-    print(switch)
-    saveSwitch(switch,fileName)
-    saveCurrentScene(name)
+    ScenesDb.add(nowTime(),name,fileName)
     ws.call(requests.SetCurrentScene(name))
 
 def loopRandomChange(fileName):
@@ -45,47 +54,14 @@ def loopRandomChange(fileName):
     transition = ws.call(requests.GetCurrentTransition())
     ws.call(requests.SetCurrentTransition("Fondu"))
     while True:
-        randomChange(fileName)
+        randomChangeClassic(fileName)
         timeSleeped=random.randint(5,15)
-        newLine=u"{} : Waiting {} seconds".format(nowTime(),timeSleeped)
-        print(newLine)
-        saveSwitch(newLine,fileName)
+        # save time sleeped
         for compteur in range(timeSleeped):
-            saveWaitingTime(timeSleeped-compteur)
             time.sleep(1)   
 
-def saveSwitch(changes,fileName):
-    with open(fileName, "a") as f:
-        f.write(changes)
-        f.write("\n")
-
-def saveCurrentScene(scene):
-    """save the current scene with a parameter overwrite it all time"""
-    with open("currentScene.txt", "w") as f:
-        f.write(scene)
-        f.write("\n")
-
-def saveWaitingTime(time):
-    """save the waiting time with a parameter overwrite it all time"""
-    with open("waitingTime.txt", "w") as f:
-        f.write(str(time))
-        f.write("\n")
-
-def clearTxtFile(fileName):
-    with open(fileName, "w") as f:
-        f.write("")
-
-def beginPrgrm(fileName):
-    with open(fileName, "a") as f:
-        f.write(u"PROGRAM STARTED at {}".format(nowTime()))
-        f.write("\n")
-
-def endPrgrm(fileName):
-    with open(fileName, "a") as f:
-        f.write(u"PROGRAM ENDED at {}".format(nowTime()))
-        f.write("\n")
-
 if __name__ == '__main__':
+    ScenesDb = ScenesDb('scenes.db')
     socket.getaddrinfo('localhost', 8080)
     logging.basicConfig(level=logging.INFO)
     sys.path.append('../')
@@ -96,6 +72,4 @@ if __name__ == '__main__':
     ws.connect()
     scenes = ws.call(requests.GetSceneList())
     fileName=f"switch.txt"
-    clearTxtFile(fileName)
-    beginPrgrm(fileName)
     loopRandomChange(fileName)
