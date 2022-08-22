@@ -1,3 +1,5 @@
+# Code from https://stackoverflow.com/questions/4160175/detect-tap-with-pyaudio-from-live-mic
+
 import pyaudio
 import struct
 import math
@@ -109,3 +111,4 @@ if __name__ == "__main__":
     tt = TapTester()
     for i in range(1000):
         tt.listen()
+    print("finished")
