@@ -4,6 +4,7 @@ import random
 import logging
 import socket
 import sqlite3
+from unicodedata import name
 from obswebsocket import obsws, requests  # noqa: E402
 
 class ScenesDb:
@@ -38,7 +39,7 @@ def hourDate():
     currentDate=time.strftime("%d%m%Y")
     return f"{currentTime}.{currentDate}"
 
-def randomChangeClassic(fileName):
+def randomChangeClassic():
     lst=scenes.getScenes()
     nLst=[]
     for i in lst:
@@ -46,17 +47,18 @@ def randomChangeClassic(fileName):
             nLst.append(i)
     random_scene = random.choice(nLst)
     name = random_scene['name']
-    ScenesDb.add(nowTime(),name,fileName)
+    ScenesDb.add(nowTime(),name,)
     ws.call(requests.SetCurrentScene(name))
+    return name
 
-def loopRandomChange(fileName):
+def loopRandomChange():
     scenes = ws.call(requests.GetSceneList())
     transition = ws.call(requests.GetCurrentTransition())
     ws.call(requests.SetCurrentTransition("Fondu"))
     while True:
-        randomChangeClassic(fileName)
+        now=randomChangeClassic()
         timeSleeped=random.randint(5,15)
-        # save time sleeped
+        ScenesDb.add(nowTime(),f"Sleep {timeSleeped} seconds", name, "randomChangeClassic")
         for compteur in range(timeSleeped):
             time.sleep(1)   
 
@@ -71,5 +73,4 @@ if __name__ == '__main__':
     ws = obsws(host, port, password)
     ws.connect()
     scenes = ws.call(requests.GetSceneList())
-    fileName=f"switch.txt"
-    loopRandomChange(fileName)
+    loopRandomChange()
