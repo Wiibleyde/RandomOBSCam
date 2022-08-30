@@ -16,7 +16,7 @@ class ScenesDb:
         self.conn.commit()
     
     def add(self, hour, scene, reason):
-        self.cursor.execute('''INSERT INTO scenes (hour, scene, reason) VALUES (?, ?, ?, ?)''', (hour, scene, reason))
+        self.cursor.execute('''INSERT INTO scenes (hour, scene, reason) VALUES (?, ?, ?)''', (str(hour), str(scene), str(reason)))
         self.conn.commit()
     
     def getLast(self):
@@ -47,7 +47,6 @@ def randomChangeClassic():
             nLst.append(i)
     random_scene = random.choice(nLst)
     name = random_scene['name']
-    ScenesDb.add(nowTime(),name,)
     ws.call(requests.SetCurrentScene(name))
     return name
 
@@ -58,7 +57,8 @@ def loopRandomChange():
     while True:
         now=randomChangeClassic()
         timeSleeped=random.randint(5,15)
-        ScenesDb.add(nowTime(),f"Sleep {timeSleeped} seconds", name, "randomChangeClassic")
+        print(f"{nowTime()} [INFO] Changement de scene vers {now} pendant {timeSleeped} secondes")
+        ScenesDb.add(nowTime(), str(now), "randomChangeClassic")
         for compteur in range(timeSleeped):
             time.sleep(1)   
 
