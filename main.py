@@ -84,8 +84,19 @@ def randomChangePi():
     return name
 
 def testStatus():
-    # TO DO : test of situation by default return 0
-    status=3
+    # 0 = all, 1 = obj, 2 = pu, 3 = pi
+    # TO DO : test of situation by default return 0 (no reason)
+    status=0
+    if True: #RandomAll
+        status=0
+    elif True: #RandomObj (no piano, no applause)
+        status=1
+    elif True: #RandomPu (applause detected)
+        status=2
+    elif True: #RandomPi (piano detected)
+        status=3
+    else: #RandomAll
+        status=0
     return status
 
 def loopRandomChange():
