@@ -85,7 +85,7 @@ def randomChangePi():
 
 def testStatus():
     # TO DO : test of situation by default return 0
-    status=0
+    status=3
     return status
 
 def loopRandomChange():
@@ -94,19 +94,23 @@ def loopRandomChange():
     ws.call(requests.SetCurrentTransition("Fondu"))
     status=0
     while True:
+        status=testStatus()
         if status==0:
             now=randomChangeAll()
+            ScenesDb.add(nowTime(), str(now), "No reason")
         elif status==1:
             now=randomChangeObj()
+            ScenesDb.add(nowTime(), str(now), "Object")
         elif status==2:
             now=randomChangePu()
+            ScenesDb.add(nowTime(), str(now), "Public")
         elif status==3:
             now=randomChangePi()
+            ScenesDb.add(nowTime(), str(now), "Piano")
         else:
             now=randomChangeAll()
         timeSleeped=random.randint(5,15)
         print(f"{nowTime()} [INFO] Changement de scene vers {now} pendant {timeSleeped} secondes")
-        ScenesDb.add(nowTime(), str(now), "randomChangeClassic")
         for compteur in range(timeSleeped):
             time.sleep(1)   
 
