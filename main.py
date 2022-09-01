@@ -39,7 +39,7 @@ def hourDate():
     currentDate=time.strftime("%d%m%Y")
     return f"{currentTime}.{currentDate}"
 
-def randomChangeClassic():
+def randomChangeAll():
     lst=scenes.getScenes()
     nLst=[]
     for i in lst:
@@ -50,12 +50,60 @@ def randomChangeClassic():
     ws.call(requests.SetCurrentScene(name))
     return name
 
+def randomChangeObj():
+    lst=scenes.getScenes()
+    nLst=[]
+    for i in lst:
+        if "CAM" in i['name'] and "OBJ" in i['name']:
+            nLst.append(i)
+    random_scene = random.choice(nLst)
+    name = random_scene['name']
+    ws.call(requests.SetCurrentScene(name))
+    return name
+
+def randomChangePu():
+    lst=scenes.getScenes()
+    nLst=[]
+    for i in lst:
+        if "CAM" in i['name'] and "PU" in i['name']:
+            nLst.append(i)
+    random_scene = random.choice(nLst)
+    name = random_scene['name']
+    ws.call(requests.SetCurrentScene(name))
+    return name
+
+def randomChangePi():
+    lst=scenes.getScenes()
+    nLst=[]
+    for i in lst:
+        if "CAM" in i['name'] and "PI" in i['name']:
+            nLst.append(i)
+    random_scene = random.choice(nLst)
+    name = random_scene['name']
+    ws.call(requests.SetCurrentScene(name))
+    return name
+
+def testStatus():
+    # TO DO : test of situation by default return 0
+    status=0
+    return status
+
 def loopRandomChange():
     scenes = ws.call(requests.GetSceneList())
     transition = ws.call(requests.GetCurrentTransition())
     ws.call(requests.SetCurrentTransition("Fondu"))
+    status=0
     while True:
-        now=randomChangeClassic()
+        if status==0:
+            now=randomChangeAll()
+        elif status==1:
+            now=randomChangeObj()
+        elif status==2:
+            now=randomChangePu()
+        elif status==3:
+            now=randomChangePi()
+        else:
+            now=randomChangeAll()
         timeSleeped=random.randint(5,15)
         print(f"{nowTime()} [INFO] Changement de scene vers {now} pendant {timeSleeped} secondes")
         ScenesDb.add(nowTime(), str(now), "randomChangeClassic")
