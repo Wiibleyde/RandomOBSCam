@@ -1,11 +1,9 @@
-from cgitb import reset
 import sys
 import time
 import random
 import logging
 import socket
 import sqlite3
-from unicodedata import name
 from obswebsocket import obsws, requests  # noqa: E402
 import pyaudio
 import struct
@@ -197,22 +195,23 @@ def testPiano():
 
 def testApplause():
     # detect if applause is heard in microphone
-    for i in range(1000):
+    for i in range(100):
         result=tt.listen()
+    print(result)
     return result
 
 def testStatus():
     # 0 = all, 1 = obj, 2 = pu, 3 = pi
     # TO DO : test of situation by default return 0 (no reason)
     status=0
-    if te: #RandomObj (no piano, no applause)
-        status=1
-    elif testApplause(): #RandomPu (applause detected)
-        status=2
-    elif True: #RandomPi (piano detected)
-        status=3
-    else: #RandomAll
-        status=0
+    # if testApplause(): #RandomPu (applause detected)
+    #     status=2
+    # elif testPiano(): #RandomPi (piano detected)
+    #     status=3
+    # elif True: #RandomObj (object voice no piano or applause)
+    #     status=1
+    # else: #RandomAll
+    #     status=0
     return status
 
 def loopRandomChange():
