@@ -101,6 +101,7 @@ class OBS:
             self.logs.addError(f"Get current scene failed : {e}")
 
     def setCurrentScene(self, sceneName):
+        print(sceneName)
         try:
             self.obs.call(obswebsocket.requests.SetCurrentScene(sceneName))
             self.logs.addInfo(f"Set current scene to {sceneName} successful")
@@ -120,47 +121,42 @@ def autoCam():
     for scene in range(len(scenes)):
         if "CAM" in scenes[scene]["sceneName"]:
             validScenes.append(scenes[scene])
-        else:
-            pass
     logs.addInfo(f"Scènes trouvées : {validScenes}")
     for scene in validScenes:
         logs.addInfo(f"Checking {scene['sceneName']}")
         if "SCE" in str(scene["sceneName"]):
             logs.addInfo(f"Adding {scene['sceneName']} to scene scenes")
             sceneScenes.append(scene["sceneName"])
-        elif "PUB" in str(scene["sceneName"]):
+        if "PUB" in str(scene["sceneName"]):
             logs.addInfo(f"Adding {scene['sceneName']} to public scenes")
             publicScenes.append(scene["sceneName"])
-        elif "PIA" in str(scene["sceneName"]):
+        if "PIA" in str(scene["sceneName"]):
             logs.addInfo(f"Adding {scene['sceneName']} to piano scenes")
             pianoScenes.append(scene["sceneName"])
-        else:
-            logs.addWarning(f"No category found for {scene['sceneName']}")
     logs.addInfo(f"Scènes de scène trouvées : {sceneScenes}")
     logs.addInfo(f"Scènes du public trouvées : {publicScenes}")
     logs.addInfo(f"Scènes du piano trouvées : {pianoScenes}")
-    return
     while True:
         logs.addInfo("Changement de scène aléatoire")
         needed = neededScene()
         if needed == 0:
             # chose a random scene
-            logs.addInfo("Changement de scène aléatoire")
-            sceneSize = len(scenes)
-            randomScene = scenes[random.randint(0, sceneSize)]
-            obs.setCurrentScene(randomScene)
+            logs.addInfo("Changement de scène aléatoire car pas priorité")
+            sceneSize = len(validScenes)
+            randomScene = validScenes[random.randint(0, sceneSize)]
+            obs.setCurrentScene(randomScene["sceneName"])
         elif needed == 1:
             # chose a random scene only in scene scenes
             logs.addInfo("Changement de scène aléatoire dans les scènes de scène")
             sceSceneSize = len(sceneScenes)
             randomScene = sceneScenes[random.randint(0, sceSceneSize)]
-            obs.setCurrentScene(randomScene)
+            obs.setCurrentScene(randomScene["sceneName"])
         elif needed == 2:
             # chose a random scene only in public scenes
             logs.addInfo("Changement de scène aléatoire dans les scènes du public")
             pubSceneSize = len(publicScenes)
             randomScene = publicScenes[random.randint(0, pubSceneSize)]
-            obs.setCurrentScene(randomScene)
+            obs.setCurrentScene(randomScene["sceneName"])
         elif needed == 3:
             # chose a random scene only in piano scenes
             logs.addInfo("Changement de scène aléatoire dans les scènes du piano")
