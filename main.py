@@ -100,6 +100,7 @@ class OBS:
             self.logs.addError(f"Get current scene failed : {e}")
 
     def setCurrentScene(self, scene):
+        scene = scene["sceneName"]
         try:
             self.obs.call(requests.SetCurrentProgramScene(sceneName=scene))
             self.logs.addInfo(f"Set current scene to {scene} successful")
@@ -144,19 +145,17 @@ def autoCam():
             logs.addInfo("Changement de scène aléatoire car pas priorité")
             sceneSize = len(validScenes)
             randomScene = validScenes[random.randint(0, sceneSize-1)]
-            obs.setCurrentScene(randomScene["sceneName"])
+            obs.setCurrentScene(randomScene)
         elif needed == 1:
-            # chose a random scene only in scene scenes
             logs.addInfo("Changement de scène aléatoire dans les scènes de scène")
             sceSceneSize = len(sceneScenes)
             randomScene = sceneScenes[random.randint(0, sceSceneSize-1)]
-            obs.setCurrentScene(randomScene["sceneName"])
+            obs.setCurrentScene(randomScene)
         elif needed == 2:
-            # chose a random scene only in public scenes
             logs.addInfo("Changement de scène aléatoire dans les scènes du public")
             pubSceneSize = len(publicScenes)
             randomScene = publicScenes[random.randint(0, pubSceneSize-1)]
-            obs.setCurrentScene(randomScene["sceneName"])
+            obs.setCurrentScene(randomScene)
         elif needed == 3:
             # chose a random scene only in piano scenes
             logs.addInfo("Changement de scène aléatoire dans les scènes du piano")
@@ -164,8 +163,11 @@ def autoCam():
             randomScene = pianoScenes[random.randint(0, piaSceneSize)]
             obs.setCurrentScene(randomScene)
         waitingTime = random.randint(config.get("minTime"), config.get("maxTime"))
-        logs.addInfo(f"Waiting {waitingTime} seconds")
-        time.sleep(waitingTime)
+        for i in range(waitingTime+1):
+            print(f"Waiting {waitingTime-i} seconds", end="\r")
+            time.sleep(1)
+        print("Switching scene  ", end="\r")
+        print("")
 
 if __name__ == "__main__":
     config = Config("config.json")
