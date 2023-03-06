@@ -116,6 +116,9 @@ def autoCam():
     sceneScenes = []
     publicScenes = []
     pianoScenes = []
+    if len(scenes) == 0:
+        logs.addError("No scene found")
+        return
     for scene in range(len(scenes)):
         if "CAM" in scenes[scene]["sceneName"]:
             validScenes.append(scenes[scene])
@@ -161,11 +164,9 @@ def autoCam():
             piaSceneSize = len(pianoScenes)
             randomScene = pianoScenes[random.randint(0, piaSceneSize)]
             obs.setCurrentScene(randomScene)
-        # time.sleep(random.randint(config.get("minTime"), config.get("maxTime")))
-        time.sleep(1)
-        
-        
-    obs.disconnect()
+        waitingTime = random.randint(config.get("minTime"), config.get("maxTime"))
+        logs.addInfo(f"Waiting {waitingTime} seconds")
+        time.sleep(waitingTime)
 
 if __name__ == "__main__":
     config = Config("config.json")
