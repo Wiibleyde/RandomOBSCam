@@ -1,4 +1,4 @@
-import obswebsocket
+from obswebsocket import obsws, requests
 import json
 import os
 # import requests
@@ -71,7 +71,7 @@ class OBS:
 
     def connect(self):
         try:
-            self.obs = obswebsocket.obsws(self.config.get("ip"), self.config.get("port"), self.config.get("password"))
+            self.obs = obsws(self.config.get("ip"), self.config.get("port"), self.config.get("password"),legacy=False)
             self.obs.connect()
             self.logs.addInfo("Connection to OBS successful")
         except Exception as e:
@@ -86,7 +86,7 @@ class OBS:
 
     def getScenes(self):
         try:
-            self.scenes = self.obs.call(obswebsocket.requests.GetSceneList()).getScenes()
+            self.scenes = self.obs.call(requests.GetSceneList()).getScenes()
             self.logs.addInfo("Get scenes successful")
         except Exception as e:
             self.logs.addError(f"Get scenes failed : {e}")
@@ -94,17 +94,17 @@ class OBS:
 
     def getCurrentScene(self):
         try:
-            self.currentScene = self.obs.call(obswebsocket.requests.GetCurrentScene()).getName()
+            self.currentScene = self.obs.call(requests.GetCurrentScene()).getName()
             self.logs.addInfo("Get current scene successful")
         except Exception as e:
             self.logs.addError(f"Get current scene failed : {e}")
 
-    def setCurrentScene(self, sceneName):
+    def setCurrentScene(self, scene):
         try:
-            self.obs.call(obswebsocket.requests.SetCurrentScene(sceneName))
-            self.logs.addInfo(f"Set current scene to {sceneName} successful")
+            self.obs.call(requests.SetCurrentProgramScene(sceneName=scene))
+            self.logs.addInfo(f"Set current scene to {scene} successful")
         except Exception as e:
-            self.logs.addError(f"Set current scene to {sceneName} failed : {e}")
+            self.logs.addError(f"Set current scene to {scene} failed : {e}")
 
 def neededScene():
     return 0
@@ -138,7 +138,6 @@ def autoCam():
     logs.addInfo(f"Scènes du public trouvées : {publicScenes}")
     logs.addInfo(f"Scènes du piano trouvées : {pianoScenes}")
     while True:
-        logs.addInfo("Changement de scène aléatoire")
         needed = neededScene()
         if needed == 0:
             # chose a random scene
