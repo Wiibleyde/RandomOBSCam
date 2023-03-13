@@ -1,9 +1,10 @@
 from obswebsocket import obsws, requests
 import json
 import os
-# import requests
+import flask
 import time
 import random
+import asyncio
 
 class Config:
     def __init__(self, filename):
@@ -60,6 +61,36 @@ class Logs:
         with open(self.filename, "a",encoding='utf8') as f:
             f.write(stringLog+"\n")
 
+class LogsScene:
+    def __init__(self, filename):
+        self.filename = filename
+        try:
+            with open(filename, "r") as f:
+                self.logs = json.load(f)
+        except:
+            self.create()
+
+    def create(self):
+        with open(self.filename, "w") as f:
+            json.dump([], f)
+
+    def addScene(self, scene):
+        with open(self.filename, "w") as f:
+            self.logs.append(scene)
+            json.dump(self.logs, f)
+
+    def getLogs(self):
+        return self.logs
+    
+    def getLogsString(self):
+        string = ""
+        for log in self.logs:
+            string += f"{log} - "
+        return string
+    
+    def getLastScene(self, number):
+        return self.logs[-number:]
+    
 class OBS:
     def __init__(self, config, logs):
         self.config = config
@@ -104,13 +135,21 @@ class OBS:
         try:
             self.obs.call(requests.SetCurrentProgramScene(sceneName=scene))
             self.logs.addInfo(f"Set current scene to {scene} successful")
+            logsScene.addScene(scene)
         except Exception as e:
             self.logs.addError(f"Set current scene to {scene} failed : {e}")
 
-def neededScene():
-    return 0
+class NeededScenes:
+    def __init__(self, mode):
+        self.mode = mode
+    
+    def setMode(self, mode):
+        self.mode = mode
 
-def autoCam():
+    def getMode(self):
+        return self.mode
+
+async def autoCam():
     obs.connect()
     scenes=obs.getScenes()
     validScenes = []
@@ -139,7 +178,7 @@ def autoCam():
     logs.addInfo(f"Scènes du public trouvées : {publicScenes}")
     logs.addInfo(f"Scènes du piano trouvées : {pianoScenes}")
     while True:
-        needed = neededScene()
+        needed = neededScenes.getMode()
         if needed == 0:
             # chose a random scene
             logs.addInfo("Changement de scène aléatoire car pas priorité")
@@ -162,15 +201,32 @@ def autoCam():
             piaSceneSize = len(pianoScenes)
             randomScene = pianoScenes[random.randint(0, piaSceneSize)]
             obs.setCurrentScene(randomScene)
-        waitingTime = random.randint(config.get("minTime"), config.get("maxTime"))
+        # waitingTime = random.randint(config.get("minTime"), config.get("maxTime"))
+        waitingTime = 1
         for i in range(waitingTime+1):
             print(f"Waiting {waitingTime-i} seconds", end="\r")
-            time.sleep(1)
+            await asyncio.sleep(1)
         print("Switching scene  ", end="\r")
         print("")
 
+app = flask.Flask(__name__)
+
+@app.route("/neededScene/<int:needed>")
+def neededScene(needed):
+    neededScenes.setMode(needed)
+    return True
+
+@app.route("/")
+def index():
+    lastScenes = logsScene.getLastScene(10)
+    return flask.render_template("index.html", lastScene=lastScenes, currentMode=neededScenes.getMode(), currentScene=obs.currentSceneName)
+
 if __name__ == "__main__":
+    neededScenes = NeededScenes(0)
     config = Config("config.json")
     logs = Logs("logs.log")
+    logsScene = LogsScene("logsScene.json")
     obs = OBS(config, logs)
-    autoCam()
+    autoCamTask = asyncio.get_event_loop()
+    autoCamTask.create_task(autoCam())
+    app.run(host="0.0.0.0", port=5000)
