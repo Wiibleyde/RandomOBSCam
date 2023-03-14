@@ -7,6 +7,7 @@ import random
 import threading
 import sqlite3
 import logging
+import argparse
 
 class Config:
     def __init__(self, filename):
@@ -50,6 +51,12 @@ class Logs:
         stringLog = f"[DEBUG] {time.strftime('%d/%m/%Y %H:%M:%S')} - {message}"
         if self.mode:
             print(stringLog)
+        with open(self.filename, "a",encoding='utf8') as f:
+            f.write(stringLog+"\n")
+
+    def addInfo(self, message):
+        stringLog = f"[INFO] {time.strftime('%d/%m/%Y %H:%M:%S')} - {message}"
+        print(stringLog)
         with open(self.filename, "a",encoding='utf8') as f:
             f.write(stringLog+"\n")
 
@@ -145,7 +152,7 @@ class OBS:
         scene = scene["sceneName"]
         try:
             self.obs.call(requests.SetCurrentProgramScene(sceneName=scene))
-            self.logs.addDebug(f"Set current scene to {scene} successful")
+            self.logs.addInfo(f"Set current scene to {scene} successful")
             logsScene.addScene(scene)
         except Exception as e:
             self.logs.addError(f"Set current scene to {scene} failed : {e}")
@@ -223,6 +230,7 @@ def autoCam(stop_event):
             randomScene = pianoScenes[random.randint(0, piaSceneSize-1)]
             obs.setCurrentScene(randomScene)
         waitingTime = random.randint(config.get("minTime"), config.get("maxTime"))
+        logs.addInfo(f"Waiting {waitingTime} seconds before switching scene")
         for i in range(waitingTime+1):
             if logs.mode:
                 print(f"Waiting {waitingTime-i} seconds", end="\r")
@@ -265,6 +273,12 @@ def isThereAutoCam():
         return True
     else:
         return False
+    
+def getArgs():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--debug", help="Enable debug mode", action="store_true")
+    args = parser.parse_args()
+    return args
 
 app = flask.Flask(__name__)
 app.secret_key = "super secret key"
@@ -310,12 +324,18 @@ def control():
 if __name__ == "__main__":
     neededScenes = NeededScenes(0)
     config = Config("config.json")
-    logs = Logs("logs.log", False)
+    if getArgs().debug:
+        logs = Logs("logs.log", True)
+    else:
+        logs = Logs("logs.log", False)
     logsScene = LogsScene("logsScene.log.db")
     logsScene.clearDb()
     obs = OBS(config, logs)
     thread = None
     thread_stop = threading.Event()
     log = logging.getLogger('werkzeug')
-    log.disabled = True
+    if logs.mode:
+        log.disabled = False
+    else:
+        log.disabled = True
     app.run(host="0.0.0.0", port=5000) 
