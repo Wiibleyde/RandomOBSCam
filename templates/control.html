@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+        <title>OBS Auto Switcher</title>
+    </head>
+    <body class="bg-dark text-light">
+        <div class="container py-5">
+            <div class="row mb-5">
+                <div class="col-md-12 text-center">
+                    <h1 class="display-4 text-light">Control of OBS Auto Cam Switcher</h1>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-12 text-center">
+                    <a href="/start" class="btn btn-success btn-lg me-3">Start the Auto Cam Switch</a>
+                    <a href="/stop" class="btn btn-danger btn-lg">Stop the Auto Cam Switch</a>
+                </div>
+            </div>
+            <div class="row mb-5">
+                <div class="col-md-12 text-center">
+                    <h1 class="display-4 text-light">Mod of Switch</h1>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    {% if currentMode == 0 %}
+                        <a href="/neededScene/0" class="btn btn-success btn-lg d-block w-100">Random Switch</a>
+                    {% else %}
+                        <a href="/neededScene/0" class="btn btn-secondary btn-lg d-block w-100">Random Switch</a>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    {% if currentMode == 1 %}
+                        <a href="/neededScene/1" class="btn btn-success btn-lg d-block w-100">Scene Scenes</a>
+                    {% else %}
+                        <a href="/neededScene/1" class="btn btn-secondary btn-lg d-block w-100">Scene Scenes</a>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    {% if currentMode == 2 %}
+                        <a href="/neededScene/2" class="btn btn-success btn-lg d-block w-100">Public Scenes</a>
+                    {% else %}
+                        <a href="/neededScene/2" class="btn btn-secondary btn-lg d-block w-100">Public Scenes</a>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    {% if currentMode == 3 %}
+                        <a href="/neededScene/3" class="btn btn-success btn-lg d-block w-100">Piano Scenes</a>
+                    {% else %}
+                        <a href="/neededScene/3" class="btn btn-secondary btn-lg d-block w-100">Piano Scenes</a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12">
+                    <div id="scene-div">
+                        {% for scene in lastScene %}
+                        <div class="card mb-3 bg-secondary text-light">
+                            <div class="card-body">
+                                <h2 class="card-title">{{ scene[0] }}</h2>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+    <footer class="bg-secondary" style="position: fixed;width: 100%;bottom: 0;">
+        <div class="container py-5 text-center">
+            <p class="text-center text-light mb-0">Made by <a href="https://github.com/Wiibleyde" class="text-light">Wiibleyde</a></p>
+            <p class="text-center text-light mb-0">Source code: <a href="https://github.com/Wiibleyde/obsAutoCam" class="text-light">Github repository</a></p>
+            <!-- copyrught part -->
+            <p class="text-center text-light mb-0">© 2023 <a href="https://github.com/Wiibleyde/obsAutoCam" class="text-light">Wiibleyde Auto cam OBS swicther</a>. All Rights Reserved.</p>
+        </div>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        var reloadInterval = 500;
+
+        setInterval(function() {
+            $('#scene-div').load(location.href + ' #scene-div', function() {
+                var divValue = $('#scene-div').text();
+            });
+        }, reloadInterval);
+    </script>
+</html>

@@ -4,7 +4,9 @@ import os
 import flask
 import time
 import random
-import asyncio
+import threading
+import sqlite3
+import logging
 
 class Config:
     def __init__(self, filename):
@@ -64,33 +66,40 @@ class Logs:
 class LogsScene:
     def __init__(self, filename):
         self.filename = filename
-        try:
-            with open(filename, "r") as f:
-                self.logs = json.load(f)
-        except:
-            self.create()
-
-    def create(self):
-        with open(self.filename, "w") as f:
-            json.dump([], f)
+        req = "CREATE TABLE IF NOT EXISTS scenes (id INTEGER PRIMARY KEY AUTOINCREMENT, scene TEXT, date TEXT)"
+        self.conn = sqlite3.connect(self.filename)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute(req)
+        self.conn.commit()
 
     def addScene(self, scene):
-        with open(self.filename, "w") as f:
-            self.logs.append(scene)
-            json.dump(self.logs, f)
+        req = f"INSERT INTO scenes(scene, date) VALUES('{scene}', '{time.strftime('%d/%m/%Y %H:%M:%S')}')"
+        self.conn = sqlite3.connect(self.filename)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute(req)
+        self.conn.commit()
 
-    def getLogs(self):
-        return self.logs
+    def getScenes(self):
+        req = "SELECT * FROM scenes"
+        self.conn = sqlite3.connect(self.filename)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute(req)
+        return self.cursor.fetchall()
     
-    def getLogsString(self):
-        string = ""
-        for log in self.logs:
-            string += f"{log} - "
-        return string
+    def getLastScenes(self,nb):
+        req = f"SELECT scene FROM scenes ORDER BY id DESC LIMIT {nb}"
+        self.conn = sqlite3.connect(self.filename)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute(req)
+        return self.cursor.fetchall()
     
-    def getLastScene(self, number):
-        return self.logs[-number:]
-    
+    def clearDb(self):
+        req = "DELETE FROM scenes"
+        self.conn = sqlite3.connect(self.filename)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute(req)
+        self.conn.commit()
+
 class OBS:
     def __init__(self, config, logs):
         self.config = config
@@ -148,8 +157,20 @@ class NeededScenes:
 
     def getMode(self):
         return self.mode
+    
+    def getModeStr(self):
+        if self.mode == 0:
+            return "Random"
+        elif self.mode == 1:
+            return "Scene"
+        elif self.mode == 2:
+            return "Public"
+        elif self.mode == 3:
+            return "Piano"
+        else:
+            return "Not defined"
 
-async def autoCam():
+def autoCam(stop_event):
     obs.connect()
     scenes=obs.getScenes()
     validScenes = []
@@ -167,20 +188,19 @@ async def autoCam():
         logs.addInfo(f"Checking {scene['sceneName']}")
         if "SCE" in str(scene["sceneName"]):
             logs.addInfo(f"Adding {scene['sceneName']} to scene scenes")
-            sceneScenes.append(scene["sceneName"])
+            sceneScenes.append(scene)
         if "PUB" in str(scene["sceneName"]):
             logs.addInfo(f"Adding {scene['sceneName']} to public scenes")
-            publicScenes.append(scene["sceneName"])
+            publicScenes.append(scene)
         if "PIA" in str(scene["sceneName"]):
             logs.addInfo(f"Adding {scene['sceneName']} to piano scenes")
-            pianoScenes.append(scene["sceneName"])
+            pianoScenes.append(scene)
     logs.addInfo(f"Scènes de scène trouvées : {sceneScenes}")
     logs.addInfo(f"Scènes du public trouvées : {publicScenes}")
     logs.addInfo(f"Scènes du piano trouvées : {pianoScenes}")
-    while True:
+    while not stop_event.is_set():
         needed = neededScenes.getMode()
         if needed == 0:
-            # chose a random scene
             logs.addInfo("Changement de scène aléatoire car pas priorité")
             sceneSize = len(validScenes)
             randomScene = validScenes[random.randint(0, sceneSize-1)]
@@ -196,37 +216,96 @@ async def autoCam():
             randomScene = publicScenes[random.randint(0, pubSceneSize-1)]
             obs.setCurrentScene(randomScene)
         elif needed == 3:
-            # chose a random scene only in piano scenes
             logs.addInfo("Changement de scène aléatoire dans les scènes du piano")
             piaSceneSize = len(pianoScenes)
-            randomScene = pianoScenes[random.randint(0, piaSceneSize)]
+            randomScene = pianoScenes[random.randint(0, piaSceneSize-1)]
             obs.setCurrentScene(randomScene)
-        # waitingTime = random.randint(config.get("minTime"), config.get("maxTime"))
-        waitingTime = 1
+        waitingTime = random.randint(config.get("minTime"), config.get("maxTime"))
         for i in range(waitingTime+1):
             print(f"Waiting {waitingTime-i} seconds", end="\r")
-            await asyncio.sleep(1)
-        print("Switching scene  ", end="\r")
-        print("")
+            time.sleep(1)
+            if stop_event.is_set():
+                break
+        if not stop_event.is_set():
+            print("Switching scene   ", end="\r")
+            time.sleep(1)
+    obs.disconnect()
+    
+def startAutoCam():
+    global thread
+    if thread is None or not thread.is_alive():
+        thread = threading.Thread(target=autoCam, args=(thread_stop,))
+        thread.start()
+        return True
+    else:
+        return False
+
+def stopAutoCam():
+    global thread
+    global thread_stop
+    if thread is not None and thread.is_alive():
+        thread_stop.set()
+        try:
+            thread.join()
+        except Exception as e:
+            print(f"Exception occurred while stopping thread: {e}")
+        finally:
+            thread_stop.clear()
+        return True
+    else:
+        return False
+
 
 app = flask.Flask(__name__)
-
-@app.route("/neededScene/<int:needed>")
-def neededScene(needed):
-    neededScenes.setMode(needed)
-    return True
+app.secret_key = "super secret key"
+app.config["SESSION_TYPE"] = "filesystem"
 
 @app.route("/")
 def index():
-    lastScenes = logsScene.getLastScene(10)
-    return flask.render_template("index.html", lastScene=lastScenes, currentMode=neededScenes.getMode(), currentScene=obs.currentSceneName)
+    return flask.redirect(flask.url_for("control"))
+
+@app.route("/neededScene/<int:needed>")
+def neededScene(needed):
+    logs.addInfo(f"Needed scene set to {needed}")
+    neededScenes.setMode(needed)
+    flask.flash(f"Needed scene set to {needed}")
+    return flask.redirect(flask.url_for("control"))
+
+@app.route("/start")
+def start():
+    startFunc = startAutoCam()
+    if startFunc:
+        flask.flash("Started auto loop")
+        return flask.redirect(flask.url_for("control"))
+    else:
+        flask.flash("Auto loop already started")
+        return flask.redirect(flask.url_for("control"))
+
+@app.route("/stop")
+def stop():
+    stopFunc = stopAutoCam()
+    if stopFunc:
+        flask.flash("Stopped auto loop")
+        return flask.redirect(flask.url_for("control"))
+    else:
+        flask.flash("Auto loop already stopped")
+        return flask.redirect(flask.url_for("control"))
+    
+@app.route("/control")
+def control():
+    lastScenes = logsScene.getLastScenes(5)
+    # status = thread.is_alive()
+    return flask.render_template("control.html", lastScene=lastScenes, currentMode=neededScenes.getMode(), currentScene=obs.currentSceneName)
 
 if __name__ == "__main__":
     neededScenes = NeededScenes(0)
     config = Config("config.json")
     logs = Logs("logs.log")
-    logsScene = LogsScene("logsScene.json")
+    logsScene = LogsScene("logsScene.log.db")
+    logsScene.clearDb()
     obs = OBS(config, logs)
-    autoCamTask = asyncio.get_event_loop()
-    autoCamTask.create_task(autoCam())
-    app.run(host="0.0.0.0", port=5000)
+    thread = None
+    thread_stop = threading.Event()
+    log = logging.getLogger('werkzeug')
+    log.disabled = True
+    app.run(host="0.0.0.0", port=5000) 
