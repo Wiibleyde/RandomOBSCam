@@ -36,8 +36,9 @@ class Config:
         self.config[key] = value
 
 class Logs:
-    def __init__(self, filename):
+    def __init__(self, filename, mode):
         self.filename = filename
+        self.mode = mode
         if not os.path.exists(self.filename):
             self.create()
 
@@ -45,9 +46,10 @@ class Logs:
         with open(self.filename, "w") as f:
             json.dump([], f)
 
-    def addInfo(self, message):
-        stringLog = f"[INFO] {time.strftime('%d/%m/%Y %H:%M:%S')} - {message}"
-        print(stringLog)
+    def addDebug(self, message):
+        stringLog = f"[DEBUG] {time.strftime('%d/%m/%Y %H:%M:%S')} - {message}"
+        if self.mode:
+            print(stringLog)
         with open(self.filename, "a",encoding='utf8') as f:
             f.write(stringLog+"\n")
 
@@ -113,21 +115,21 @@ class OBS:
         try:
             self.obs = obsws(self.config.get("ip"), self.config.get("port"), self.config.get("password"),legacy=False)
             self.obs.connect()
-            self.logs.addInfo("Connection to OBS successful")
+            self.logs.addDebug("Connection to OBS successful")
         except Exception as e:
             self.logs.addError(f"Connection to OBS failed : {e}")
 
     def disconnect(self):
         try:
             self.obs.disconnect()
-            self.logs.addInfo("Disconnection to OBS successful")
+            self.logs.addDebug("Disconnection to OBS successful")
         except Exception as e:
             self.logs.addError(f"Disconnection to OBS failed : {e}")
 
     def getScenes(self):
         try:
             self.scenes = self.obs.call(requests.GetSceneList()).getScenes()
-            self.logs.addInfo("Get scenes successful")
+            self.logs.addDebug("Get scenes successful")
         except Exception as e:
             self.logs.addError(f"Get scenes failed : {e}")
         return self.scenes
@@ -135,7 +137,7 @@ class OBS:
     def getCurrentScene(self):
         try:
             self.currentScene = self.obs.call(requests.GetCurrentScene()).getName()
-            self.logs.addInfo("Get current scene successful")
+            self.logs.addDebug("Get current scene successful")
         except Exception as e:
             self.logs.addError(f"Get current scene failed : {e}")
 
@@ -143,7 +145,7 @@ class OBS:
         scene = scene["sceneName"]
         try:
             self.obs.call(requests.SetCurrentProgramScene(sceneName=scene))
-            self.logs.addInfo(f"Set current scene to {scene} successful")
+            self.logs.addDebug(f"Set current scene to {scene} successful")
             logsScene.addScene(scene)
         except Exception as e:
             self.logs.addError(f"Set current scene to {scene} failed : {e}")
@@ -183,51 +185,53 @@ def autoCam(stop_event):
     for scene in range(len(scenes)):
         if "CAM" in scenes[scene]["sceneName"]:
             validScenes.append(scenes[scene])
-    logs.addInfo(f"Scènes trouvées : {validScenes}")
+    logs.addDebug(f"Scènes trouvées : {validScenes}")
     for scene in validScenes:
-        logs.addInfo(f"Checking {scene['sceneName']}")
+        logs.addDebug(f"Checking {scene['sceneName']}")
         if "SCE" in str(scene["sceneName"]):
-            logs.addInfo(f"Adding {scene['sceneName']} to scene scenes")
+            logs.addDebug(f"Adding {scene['sceneName']} to scene scenes")
             sceneScenes.append(scene)
         if "PUB" in str(scene["sceneName"]):
-            logs.addInfo(f"Adding {scene['sceneName']} to public scenes")
+            logs.addDebug(f"Adding {scene['sceneName']} to public scenes")
             publicScenes.append(scene)
         if "PIA" in str(scene["sceneName"]):
-            logs.addInfo(f"Adding {scene['sceneName']} to piano scenes")
+            logs.addDebug(f"Adding {scene['sceneName']} to piano scenes")
             pianoScenes.append(scene)
-    logs.addInfo(f"Scènes de scène trouvées : {sceneScenes}")
-    logs.addInfo(f"Scènes du public trouvées : {publicScenes}")
-    logs.addInfo(f"Scènes du piano trouvées : {pianoScenes}")
+    logs.addDebug(f"Scènes de scène trouvées : {sceneScenes}")
+    logs.addDebug(f"Scènes du public trouvées : {publicScenes}")
+    logs.addDebug(f"Scènes du piano trouvées : {pianoScenes}")
     while not stop_event.is_set():
         needed = neededScenes.getMode()
         if needed == 0:
-            logs.addInfo("Changement de scène aléatoire car pas priorité")
+            logs.addDebug("Changement de scène aléatoire car pas priorité")
             sceneSize = len(validScenes)
             randomScene = validScenes[random.randint(0, sceneSize-1)]
             obs.setCurrentScene(randomScene)
         elif needed == 1:
-            logs.addInfo("Changement de scène aléatoire dans les scènes de scène")
+            logs.addDebug("Changement de scène aléatoire dans les scènes de scène")
             sceSceneSize = len(sceneScenes)
             randomScene = sceneScenes[random.randint(0, sceSceneSize-1)]
             obs.setCurrentScene(randomScene)
         elif needed == 2:
-            logs.addInfo("Changement de scène aléatoire dans les scènes du public")
+            logs.addDebug("Changement de scène aléatoire dans les scènes du public")
             pubSceneSize = len(publicScenes)
             randomScene = publicScenes[random.randint(0, pubSceneSize-1)]
             obs.setCurrentScene(randomScene)
         elif needed == 3:
-            logs.addInfo("Changement de scène aléatoire dans les scènes du piano")
+            logs.addDebug("Changement de scène aléatoire dans les scènes du piano")
             piaSceneSize = len(pianoScenes)
             randomScene = pianoScenes[random.randint(0, piaSceneSize-1)]
             obs.setCurrentScene(randomScene)
         waitingTime = random.randint(config.get("minTime"), config.get("maxTime"))
         for i in range(waitingTime+1):
-            print(f"Waiting {waitingTime-i} seconds", end="\r")
+            if logs.mode:
+                print(f"Waiting {waitingTime-i} seconds", end="\r")
             time.sleep(1)
             if stop_event.is_set():
                 break
         if not stop_event.is_set():
-            print("Switching scene   ", end="\r")
+            if logs.mode:
+                print("Switching scene   ", end="\r")
             time.sleep(1)
     obs.disconnect()
     
@@ -248,13 +252,19 @@ def stopAutoCam():
         try:
             thread.join()
         except Exception as e:
-            print(f"Exception occurred while stopping thread: {e}")
+            logs.addError(f"Error while stopping thread : {e}")
         finally:
             thread_stop.clear()
         return True
     else:
         return False
 
+def isThereAutoCam():
+    global thread
+    if thread is not None and thread.is_alive():
+        return True
+    else:
+        return False
 
 app = flask.Flask(__name__)
 app.secret_key = "super secret key"
@@ -266,7 +276,7 @@ def index():
 
 @app.route("/neededScene/<int:needed>")
 def neededScene(needed):
-    logs.addInfo(f"Needed scene set to {needed}")
+    logs.addDebug(f"Needed scene set to {needed}")
     neededScenes.setMode(needed)
     flask.flash(f"Needed scene set to {needed}")
     return flask.redirect(flask.url_for("control"))
@@ -294,13 +304,13 @@ def stop():
 @app.route("/control")
 def control():
     lastScenes = logsScene.getLastScenes(5)
-    # status = thread.is_alive()
-    return flask.render_template("control.html", lastScene=lastScenes, currentMode=neededScenes.getMode(), currentScene=obs.currentSceneName)
+    status = isThereAutoCam()
+    return flask.render_template("control.html", lastScene=lastScenes, currentMode=neededScenes.getMode(), currentScene=obs.currentSceneName, status=status)
 
 if __name__ == "__main__":
     neededScenes = NeededScenes(0)
     config = Config("config.json")
-    logs = Logs("logs.log")
+    logs = Logs("logs.log", False)
     logsScene = LogsScene("logsScene.log.db")
     logsScene.clearDb()
     obs = OBS(config, logs)
