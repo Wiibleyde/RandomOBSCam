@@ -1,4 +1,4 @@
-# obsAutoCam
+# OBS Auto Cam
 
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/Wiibleyde/obsAutoCam) ![GitHub last commit](https://img.shields.io/github/last-commit/Wiibleyde/obsAutoCam) ![GitHub issues](https://img.shields.io/github/issues-raw/Wiibleyde/obsAutoCam) ![GitHub pull requests](https://img.shields.io/github/issues-pr-raw/Wiibleyde/obsAutoCam) ![GitHub All Releases](https://img.shields.io/github/downloads/Wiibleyde/obsAutoCam/total)
 
