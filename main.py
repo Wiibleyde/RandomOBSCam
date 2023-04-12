@@ -1,113 +1,17 @@
 from obswebsocket import obsws, requests
-import json
-import os
 import flask
 import time
 import random
 import threading
-import sqlite3
 import logging
 import argparse
+import asyncio
 
-class Config:
-    def __init__(self, filename):
-        self.filename = filename
-        self.config = {"minTime":5, "maxTime":10, "ip":"127.0.0.1", "port":4455, "password":"YOURPASSWORD"}
-        if os.path.exists(self.filename):
-            self.load()
-        else:
-            self.create()
-
-    def load(self):
-        with open(self.filename, "r") as f:
-            self.config = json.load(f)
-
-    def create(self):
-        with open(self.filename, "w") as f:
-            json.dump(self.config, f)
-
-    def save(self):
-        with open(self.filename, "w") as f:
-            json.dump(self.config, f)
-
-    def get(self, key):
-        return self.config[key]
-    
-    def set(self, key, value):
-        self.config[key] = value
-
-class Logs:
-    def __init__(self, filename, mode):
-        self.filename = filename
-        self.mode = mode
-        if not os.path.exists(self.filename):
-            self.create()
-
-    def create(self):
-        with open(self.filename, "w") as f:
-            json.dump([], f)
-
-    def addDebug(self, message):
-        stringLog = f"[DEBUG] {time.strftime('%d/%m/%Y %H:%M:%S')} - {message}"
-        if self.mode:
-            print(stringLog)
-        with open(self.filename, "a",encoding='utf8') as f:
-            f.write(stringLog+"\n")
-
-    def addInfo(self, message):
-        stringLog = f"[INFO] {time.strftime('%d/%m/%Y %H:%M:%S')} - {message}"
-        print(stringLog)
-        with open(self.filename, "a",encoding='utf8') as f:
-            f.write(stringLog+"\n")
-
-    def addError(self, message):
-        stringLog = f"[ERROR] {time.strftime('%d/%m/%Y %H:%M:%S')} - {message}"
-        print(stringLog)
-        with open(self.filename, "a",encoding='utf8') as f:
-            f.write(stringLog+"\n")
-
-    def addWarning(self, message):
-        stringLog = f"[WARNING] {time.strftime('%d/%m/%Y %H:%M:%S')} - {message}"
-        print(stringLog)
-        with open(self.filename, "a",encoding='utf8') as f:
-            f.write(stringLog+"\n")
-
-class LogsScene:
-    def __init__(self, filename):
-        self.filename = filename
-        req = "CREATE TABLE IF NOT EXISTS scenes (id INTEGER PRIMARY KEY AUTOINCREMENT, scene TEXT, date TEXT)"
-        self.conn = sqlite3.connect(self.filename)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute(req)
-        self.conn.commit()
-
-    def addScene(self, scene):
-        req = f"INSERT INTO scenes(scene, date) VALUES('{scene}', '{time.strftime('%d/%m/%Y %H:%M:%S')}')"
-        self.conn = sqlite3.connect(self.filename)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute(req)
-        self.conn.commit()
-
-    def getScenes(self):
-        req = "SELECT * FROM scenes"
-        self.conn = sqlite3.connect(self.filename)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute(req)
-        return self.cursor.fetchall()
-    
-    def getLastScenes(self,nb):
-        req = f"SELECT scene FROM scenes ORDER BY id DESC LIMIT {nb}"
-        self.conn = sqlite3.connect(self.filename)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute(req)
-        return self.cursor.fetchall()
-    
-    def clearDb(self):
-        req = "DELETE FROM scenes"
-        self.conn = sqlite3.connect(self.filename)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute(req)
-        self.conn.commit()
+# Importing objects
+from objects.config import Config
+from objects.logger import Logs
+from objects.neededscene import NeededScenes
+from objects.scenelogs import LogsScene
 
 class OBS:
     def __init__(self, config, logs):
@@ -156,28 +60,6 @@ class OBS:
             logsScene.addScene(scene)
         except Exception as e:
             self.logs.addError(f"Set current scene to {scene} failed : {e}")
-
-class NeededScenes:
-    def __init__(self, mode):
-        self.mode = mode
-    
-    def setMode(self, mode):
-        self.mode = mode
-
-    def getMode(self):
-        return self.mode
-    
-    def getModeStr(self):
-        if self.mode == 0:
-            return "Random"
-        elif self.mode == 1:
-            return "Scene"
-        elif self.mode == 2:
-            return "Public"
-        elif self.mode == 3:
-            return "Piano"
-        else:
-            return "Not defined"
 
 def autoCam(stop_event):
     obs.connect()
@@ -234,6 +116,12 @@ def autoCam(stop_event):
         for i in range(waitingTime+1):
             if logs.mode:
                 print(f"Waiting {waitingTime-i} seconds", end="\r")
+            try:
+                if varForceChange:
+                    logs.addDebug("Forcing change")
+                    break
+            except Exception as e:
+                logs.addError(f"Error while checking varForceChange : {e}")
             time.sleep(1)
             if stop_event.is_set():
                 break
@@ -266,7 +154,13 @@ def stopAutoCam():
         return True
     else:
         return False
-
+    
+async def forceChangeScene():
+    global varForceChange
+    varForceChange = True
+    await asyncio.sleep(1)
+    varForceChange = False
+    
 def isThereAutoCam():
     global thread
     if thread is not None and thread.is_alive():
@@ -314,6 +208,29 @@ def stop():
     else:
         flask.flash("Auto loop already stopped")
         return flask.redirect(flask.url_for("control"))
+
+@app.route("/setStart")
+def setStart():
+    obs.connect()
+    obs.setCurrentScene({"sceneName":"BEGIN"})
+    obs.disconnect()
+    flask.flash("Start scene set")
+    return flask.redirect(flask.url_for("control"))
+
+@app.route("/setEnd")
+def setEnd():
+    obs.connect()
+    obs.setCurrentScene({"sceneName":"END"})
+    obs.disconnect()
+    flask.flash("End scene set")
+    return flask.redirect(flask.url_for("control"))
+
+@app.route("/forceChange")
+def forceChange():
+    logs.addDebug("Forcing scene change")
+    asyncio.run(forceChangeScene())
+    flask.flash("Forcing scene change")
+    return flask.redirect(flask.url_for("control"))
     
 @app.route("/control")
 def control():
@@ -322,6 +239,7 @@ def control():
     return flask.render_template("control.html", lastScene=lastScenes, currentMode=neededScenes.getMode(), currentScene=obs.currentSceneName, status=status)
 
 if __name__ == "__main__":
+    global logsScene
     neededScenes = NeededScenes(0)
     config = Config("config.json")
     if getArgs().debug:
@@ -333,6 +251,7 @@ if __name__ == "__main__":
     obs = OBS(config, logs)
     thread = None
     thread_stop = threading.Event()
+    varForceChange = False
     log = logging.getLogger('werkzeug')
     if logs.mode:
         log.disabled = False
