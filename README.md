@@ -1,6 +1,6 @@
-# OBS Auto Cam
+# RandomOBSCam
 
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/Wiibleyde/obsAutoCam) ![GitHub last commit](https://img.shields.io/github/last-commit/Wiibleyde/obsAutoCam) ![GitHub issues](https://img.shields.io/github/issues-raw/Wiibleyde/obsAutoCam) ![GitHub pull requests](https://img.shields.io/github/issues-pr-raw/Wiibleyde/obsAutoCam) ![GitHub All Releases](https://img.shields.io/github/downloads/Wiibleyde/obsAutoCam/total)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/Wiibleyde/RandomOBSCam) ![GitHub last commit](https://img.shields.io/github/last-commit/Wiibleyde/RandomOBSCam) ![GitHub issues](https://img.shields.io/github/issues-raw/Wiibleyde/RandomOBSCam) ![GitHub pull requests](https://img.shields.io/github/issues-pr-raw/Wiibleyde/RandomOBSCam) ![GitHub All Releases](https://img.shields.io/github/downloads/Wiibleyde/RandomOBSCam/total)
 
 This is a simple script to automatically switch between scenes in OBS Studio.
 
